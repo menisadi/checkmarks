@@ -2,6 +2,10 @@ import argparse
 import re
 from pathlib import Path
 
+CYAN = "\033[96m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
 
 def parse_checklist(file_path: Path) -> tuple[int, int, str | None]:
     """Parses a markdown checklist file and returns task counts and optional title."""
@@ -29,7 +33,9 @@ def show_progress(
     bar: str = "█" * filled_length + "-" * (bar_length - filled_length)
 
     heading: str = (
-        f"📊 Progress for:\n{title}" if title else "📊 Checklist Progress"
+        f"{BOLD}{CYAN}{title}{RESET}"
+        if title
+        else f"{BOLD}{CYAN}Checklist Progress{RESET}"
     )
     print(f"\n{heading}")
     print(f"[{bar}] {done}/{total} tasks completed ({percent:.1f}%)\n")
@@ -37,9 +43,7 @@ def show_progress(
 
 def main() -> None:
     """Main entry point for the CLI."""
-    parser = argparse.ArgumentParser(
-        description="Track Markdown checklist progress"
-    )
+    parser = argparse.ArgumentParser(description="Track Markdown checklist progress")
     parser.add_argument(
         "markdown_file", type=str, help="Path to your checklist .md file"
     )
