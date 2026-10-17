@@ -1,7 +1,7 @@
 [project]
 name = "checkmarks"
-version = "0.1.1"
-description = "A simple CLI for tracking progress with markdown checklists"
+version = "0.2.0"
+description = "Progress dashboard for Markdown checklists"
 authors = [
   { name = "menisadi", email = "menisadi@gmail.com" }
 ]
