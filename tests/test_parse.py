@@ -162,8 +162,13 @@ def test_file_counter_mode() -> None:
     )
 
 
-def test_file_bom_and_crlf() -> None:
-    item = parse_file(FIXTURES / "bom_crlf.md")
+def test_file_bom_and_crlf(tmp_path: Path) -> None:
+    # Written here, not as a fixture, so git's autocrlf can't strip the CRLFs
+    md_file = tmp_path / "bom_crlf.md"
+    md_file.write_bytes(
+        b"\xef\xbb\xbf---\r\ntitle: BOM file\r\n---\r\n- [x] a\r\n- [ ] b\r\n"
+    )
+    item = parse_file(md_file)
     assert (item.title, item.done, item.total, item.status) == ("BOM file", 1, 2, "ok")
 
 
