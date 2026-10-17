@@ -12,6 +12,8 @@ license = { file = "LICENSE" }
 
 keywords = ["cli", "markdown", "checklists"]
 
+requires-python = ">=3.11"
+
 dependencies = []
 
 [project.scripts]
@@ -20,3 +22,10 @@ checkmarks = "checkmarks.cli:main"
 [project.urls]
 "Homepage" = "https://github.com/menisadi/checkmarks"
 "Issues" = "https://github.com/menisadi/checkmarks/issues"
+
+[dependency-groups]
+dev = ["pytest", "ruff", "ty"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

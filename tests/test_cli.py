@@ -1,7 +1,9 @@
-import pytest
 import re
 from pathlib import Path
-from checkmarks.cli import parse_checklist, show_progress, main
+
+import pytest
+
+from checkmarks.cli import main, parse_checklist, show_progress
 
 
 # Pytest can create and manage temporary files/directories via the 'tmp_path' fixture
