@@ -1,61 +1,85 @@
 import argparse
-import re
-from pathlib import Path
+import os
+import shutil
+import sys
 
-from checkmarks.parse import count_checkboxes
-
-CYAN = "\033[96m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
-
-
-def parse_checklist(file_path: Path) -> tuple[int, int, str | None]:
-    """Parses a markdown checklist file and returns task counts and optional title."""
-    with file_path.open("r", encoding="utf-8") as f:
-        content = f.read()
-
-    done, total = count_checkboxes(content)
-
-    # Try to extract the first level-1 heading as the title
-    title_match = re.search(r"^# (.+)", content, re.MULTILINE)
-    title: str | None = title_match.group(1).strip() if title_match else None
-
-    return done, total, title
+from checkmarks.collect import collect
+from checkmarks.parse import Item, parse_file
+from checkmarks.render import render_json, render_pretty, render_tsv
 
 
-def show_progress(
-    done: int, total: int, title: str | None = None, bar_length: int = 40
-) -> None:
-    """Displays a progress bar in the terminal, optionally with a custom title."""
-    percent: float = (done / total) * 100 if total else 0
-    filled_length: int = int(bar_length * done // total) if total else 0
-    bar: str = "█" * filled_length + "-" * (bar_length - filled_length)
-
-    heading: str = (
-        f"{BOLD}{CYAN}{title}{RESET}"
-        if title
-        else f"{BOLD}{CYAN}Checklist Progress{RESET}"
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="checkmarks", description="Show progress for Markdown checklists"
     )
-    print(f"\n{heading}")
-    print(f"[{bar}] {done}/{total} tasks completed ({percent:.1f}%)\n")
-
-
-def main() -> None:
-    """Main entry point for the CLI."""
-    parser = argparse.ArgumentParser(description="Track Markdown checklist progress")
     parser.add_argument(
-        "markdown_file", type=str, help="Path to your checklist .md file"
+        "paths",
+        nargs="*",
+        metavar="PATH",
+        help="files or directories to read; - reads paths from stdin "
+        "(default: $CHECKMARKS_DIR, else the current directory)",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-r", "--recursive", action="store_true", help="descend into subdirectories"
+    )
+    parser.add_argument(
+        "--all", action="store_true", help="show empty files found in directories"
+    )
+    fmt = parser.add_mutually_exclusive_group()
+    fmt.add_argument(
+        "--format",
+        choices=["pretty", "tsv", "json"],
+        help="output format (default: pretty on a terminal, else tsv)",
+    )
+    fmt.add_argument(
+        "--json",
+        action="store_const",
+        const="json",
+        dest="format",
+        help="same as --format json",
+    )
+    parser.add_argument("--no-color", action="store_true", help="disable colour")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="warn about empty files"
+    )
+    return parser
 
-    md_path: Path = Path(args.markdown_file)
-    if not md_path.exists():
-        print(f"❌ File not found: {md_path}")
-        return
 
-    done, total, title = parse_checklist(md_path)
-    show_progress(done, total, title)
+def warn(message: str) -> None:
+    print(f"checkmarks: {message}", file=sys.stderr)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Main entry point for the CLI. Returns the exit code."""
+    args = build_parser().parse_args(argv)
+
+    sources, warnings = collect(args.paths, args.recursive, sys.stdin, os.environ)
+    for warning in warnings:
+        warn(warning)
+
+    items: list[Item] = []
+    for source in sources:
+        item = parse_file(source.path)
+        if item.status == "error" or (item.status == "empty" and args.verbose):
+            warn(f"{item.path}: {item.message}")
+        if item.status == "empty" and not source.explicit and not args.all:
+            continue
+        items.append(item)
+
+    is_tty = sys.stdout.isatty()
+    fmt = args.format or ("pretty" if is_tty else "tsv")
+    if fmt == "json":
+        output = render_json(items)
+    elif fmt == "tsv":
+        output = render_tsv(items)
+    else:
+        color = is_tty and not args.no_color and not os.environ.get("NO_COLOR")
+        width = shutil.get_terminal_size().columns
+        output = render_pretty(items, width, color)
+    sys.stdout.write(output)
+
+    return 0 if any(item.status == "ok" for item in items) else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

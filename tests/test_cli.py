@@ -1,109 +1,140 @@
-import re
+import json
+import sys
 from pathlib import Path
 
 import pytest
 
-from checkmarks.cli import main, parse_checklist, show_progress
+from checkmarks.cli import main
 
 
-# Pytest can create and manage temporary files/directories via the 'tmp_path' fixture
-def test_parse_checklist_no_tasks(tmp_path: Path):
-    # Create an empty markdown file
-    md_file = tmp_path / "empty_checklist.md"
-    md_file.write_text("", encoding="utf-8")
-
-    done, total, title = parse_checklist(md_file)
-    assert done == 0
-    assert total == 0
-    assert title is None
-
-
-def test_parse_checklist_with_tasks(tmp_path: Path):
-    # A sample markdown with tasks and a level-1 heading
-    content = """# My Checklist
-
-- [ ] Task 1
-- [x] Task 2
-- [x] Task 3
-- [ ] Task 4
-"""
-    md_file = tmp_path / "tasks.md"
-    md_file.write_text(content, encoding="utf-8")
-
-    done, total, title = parse_checklist(md_file)
-    # We expect 2 done tasks, 4 total tasks, and the title "My Checklist"
-    assert done == 2
-    assert total == 4
-    assert title == "My Checklist"
+@pytest.fixture
+def tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A progress folder, used as the current directory."""
+    (tmp_path / "a.md").write_text("# Alpha\n- [x] a\n- [ ] b\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text(
+        "---\nprogress: 5/5\n---\n# Beta\n", encoding="utf-8"
+    )
+    (tmp_path / "notes.md").write_text("# Notes\nprose\n", encoding="utf-8")
+    (tmp_path / "bad.md").write_text("---\nprogress: x\n---\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CHECKMARKS_DIR", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("COLUMNS", "60")
+    return tmp_path
 
 
-def test_parse_checklist_no_title(tmp_path: Path):
-    # A file with tasks but no H1 heading
-    content = """- [ ] Task A
-- [x] Task B
-"""
-    md_file = tmp_path / "notitle.md"
-    md_file.write_text(content, encoding="utf-8")
-
-    done, total, title = parse_checklist(md_file)
-    assert done == 1
-    assert total == 2
-    assert title is None
+def fake_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
 
 
-def test_show_progress_output(capsys):
-    # Test that show_progress prints the correct bar and summary
-    show_progress(done=3, total=5, title="Test Title", bar_length=10)
+def test_default_is_tsv_when_piped(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    assert main([]) == 0
+    out, err = capsys.readouterr()
+    assert out.splitlines() == [
+        "Alpha\t1\t2\t50.0\ttasks\tchecklist\tok\ta.md",
+        "Beta\t5\t5\t100.0\tunits\tcounter\tok\tb.md",
+        "bad\t\t\t\tunits\tcounter\terror\tbad.md",
+    ]
+    assert err == "checkmarks: bad.md: unparseable progress: 'x'\n"
 
-    # capsys captures stdout/stderr output in pytest
-    captured = capsys.readouterr()
-    output = captured.out
 
-    # Check that certain strings/patterns appear in the output
-    assert "Test Title" in output
-    assert "3/5 tasks completed" in output
-    # Check for the ASCII bar
-    # We expect 3 out of 5 => 60%, so bar_length=10 => 6 "█" if rounding down
-    # Actually the code does integer math with //, so 3 * 10 // 5 = 6.
-    assert re.search(r"\[█{6}-{4}\]", output) is not None
-    assert "(60.0%)" in output
+def test_default_is_pretty_on_tty(
+    tree: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_tty(monkeypatch)
+    main(["a.md", "b.md"])
+    out = capsys.readouterr().out
+    assert "Alpha" in out and "[" in out
+    assert "\033[32m" in out  # Beta is complete
+
+
+def test_no_color_flag_and_env(
+    tree: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_tty(monkeypatch)
+    main(["b.md", "--no-color"])
+    assert "\033[" not in capsys.readouterr().out
+    monkeypatch.setenv("NO_COLOR", "1")
+    main(["b.md"])
+    assert "\033[" not in capsys.readouterr().out
+
+
+def test_pretty_when_piped_has_no_color(
+    tree: Path, capsys: pytest.CaptureFixture
+) -> None:
+    main(["b.md", "--format", "pretty"])
+    out = capsys.readouterr().out
+    assert "\033[" not in out
+    assert all(len(line) <= 60 for line in out.splitlines())
+
+
+def test_json(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    main(["--json", "a.md"])
+    rows = json.loads(capsys.readouterr().out)
+    assert [r["title"] for r in rows] == ["Alpha"]
+
+
+def test_format_and_json_conflict(tree: Path) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--json", "--format", "tsv"])
+    assert exc.value.code == 2
+
+
+def test_directory_hides_empty_unless_all(
+    tree: Path, capsys: pytest.CaptureFixture
+) -> None:
+    main(["."])
+    assert "Notes" not in capsys.readouterr().out
+    main([".", "--all"])
+    assert "Notes\t\t\t\ttasks\tchecklist\tempty\tnotes.md" in capsys.readouterr().out
+
+
+def test_explicit_empty_file_shown(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    main([".", "notes.md"])
+    assert "Notes" in capsys.readouterr().out
+
+
+def test_verbose_warns_about_empty(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    main(["a.md", "notes.md"])
+    assert "notes.md" not in capsys.readouterr().err
+    main(["-v", "."])
+    assert "checkmarks: notes.md: no checkboxes found" in capsys.readouterr().err
+
+
+def test_missing_file_warns(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    assert main(["nope.md", "a.md"]) == 0
+    assert capsys.readouterr().err == "checkmarks: nope.md: no such file or directory\n"
 
 
 @pytest.mark.parametrize(
-    "done,total,percent_str",
-    [
-        (0, 0, "(0.0%)"),  # edge case: no tasks
-        (0, 5, "(0.0%)"),  # none done
-        (5, 5, "(100.0%)"),  # all done
-    ],
+    "args", [["nope.md"], ["notes.md"], ["bad.md"], ["--all", "notes.md", "bad.md"]]
 )
-def test_show_progress_edge_cases(done, total, percent_str, capsys):
-    show_progress(done, total, title=None, bar_length=10)
-    output = capsys.readouterr().out
-    # Just check the percentage part is correct
-    assert percent_str in output
+def test_exit_1_without_ok_rows(tree: Path, args: list[str]) -> None:
+    assert main(args) == 1
 
 
-def test_main_file_not_found(monkeypatch, capsys):
-    # We'll pretend the user ran: `checklist not_a_file.md`
-    test_args = ["checklist", "not_a_file.md"]
-    monkeypatch.setattr("sys.argv", test_args)
-
-    main()
-    output = capsys.readouterr().out
-    assert "❌ File not found: not_a_file.md" in output
+def test_exit_1_for_empty_directory(tmp_path: Path) -> None:
+    assert main([str(tmp_path)]) == 1
 
 
-def test_main_valid_file(monkeypatch, capsys, tmp_path):
-    # Create a temporary markdown file
-    md_file = tmp_path / "test.md"
-    md_file.write_text("# Title\n- [ ] One\n- [x] Two", encoding="utf-8")
+def test_stdin_paths(
+    tree: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
 
-    # We'll pretend the user ran: `checklist test.md`
-    test_args = ["checklist", str(md_file)]
-    monkeypatch.setattr("sys.argv", test_args)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("b.md\n"))
+    main(["-"])
+    assert capsys.readouterr().out.startswith("Beta\t")
 
-    main()
-    output = capsys.readouterr().out
-    assert "Title" in output
-    assert "1/2 tasks completed" in output
+
+def test_env_dir(
+    tree: Path,
+    tmp_path_factory: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    other = tmp_path_factory.mktemp("other")
+    (other / "c.md").write_text("# Gamma\n- [ ] a\n", encoding="utf-8")
+    monkeypatch.setenv("CHECKMARKS_DIR", str(other))
+    main([])
+    assert capsys.readouterr().out.startswith("Gamma\t")
