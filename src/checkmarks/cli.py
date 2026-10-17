@@ -2,6 +2,8 @@ import argparse
 import re
 from pathlib import Path
 
+from checkmarks.parse import count_checkboxes
+
 CYAN = "\033[96m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
@@ -12,10 +14,7 @@ def parse_checklist(file_path: Path) -> tuple[int, int, str | None]:
     with file_path.open("r", encoding="utf-8") as f:
         content = f.read()
 
-    # Find all checklist items
-    all_tasks: list[str] = re.findall(r"- \[( |x)\] ", content)
-    total: int = len(all_tasks)
-    done: int = sum(1 for t in all_tasks if t == "x")
+    done, total = count_checkboxes(content)
 
     # Try to extract the first level-1 heading as the title
     title_match = re.search(r"^# (.+)", content, re.MULTILINE)
