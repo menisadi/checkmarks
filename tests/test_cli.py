@@ -12,10 +12,10 @@ def tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A progress folder, used as the current directory."""
     (tmp_path / "a.md").write_text("# Alpha\n- [x] a\n- [ ] b\n", encoding="utf-8")
     (tmp_path / "b.md").write_text(
-        "---\nprogress: 5/5\n---\n# Beta\n", encoding="utf-8"
+        "---\nunit: chapters\n---\n# Beta\n- [x] a\n", encoding="utf-8"
     )
     (tmp_path / "notes.md").write_text("# Notes\nprose\n", encoding="utf-8")
-    (tmp_path / "bad.md").write_text("---\nprogress: x\n---\n", encoding="utf-8")
+    (tmp_path / "bad.md").write_bytes(b"- [x] caf\xe9\n")
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("CHECKMARKS_DIR", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
@@ -31,11 +31,11 @@ def test_default_is_tsv_when_piped(tree: Path, capsys: pytest.CaptureFixture) ->
     assert main([]) == 0
     out, err = capsys.readouterr()
     assert out.splitlines() == [
-        "Alpha\t1\t2\t50.0\ttasks\tchecklist\tok\ta.md",
-        "Beta\t5\t5\t100.0\tunits\tcounter\tok\tb.md",
-        "bad\t\t\t\tunits\tcounter\terror\tbad.md",
+        "Alpha\t1\t2\t50.0\ttasks\tok\ta.md",
+        "Beta\t1\t1\t100.0\tchapters\tok\tb.md",
+        "bad\t\t\t\ttasks\terror\tbad.md",
     ]
-    assert err == "checkmarks: bad.md: unparseable progress: 'x'\n"
+    assert err.startswith("checkmarks: bad.md: ")
 
 
 def test_default_is_pretty_on_tty(
@@ -86,7 +86,7 @@ def test_directory_hides_empty_unless_all(
     main(["."])
     assert "Notes" not in capsys.readouterr().out
     main([".", "--all"])
-    assert "Notes\t\t\t\ttasks\tchecklist\tempty\tnotes.md" in capsys.readouterr().out
+    assert "Notes\t\t\t\ttasks\tempty\tnotes.md" in capsys.readouterr().out
 
 
 def test_explicit_empty_file_shown(tree: Path, capsys: pytest.CaptureFixture) -> None:

@@ -33,7 +33,6 @@ def render_tsv(items: list[Item]) -> str:
             str(item.total) if ok else "",
             f"{p:.1f}" if ok else "",
             clean(item.unit),
-            item.mode,
             item.status,
             str(item.path),
         ]
@@ -53,7 +52,6 @@ def render_json(items: list[Item]) -> str:
             "total": item.total if ok else None,
             "pct": round(p, 1) if p is not None else None,
             "unit": item.unit,
-            "mode": item.mode,
             "status": item.status,
             "path": str(item.path),
         }

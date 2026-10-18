@@ -7,7 +7,6 @@ from typing import Literal
 CHECKBOX_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+\[( |x|X)\](?:\s|$)")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 HEADING_RE = re.compile(r"^#\s+(.+)")
-PROGRESS_RE = re.compile(r"^(\d+)\s*/\s*(\d+)$")
 
 
 @dataclass
@@ -17,7 +16,6 @@ class Item:
     done: int | None
     total: int | None
     unit: str
-    mode: Literal["checklist", "counter"]
     status: Literal["ok", "empty", "error"]
     message: str | None = None
 
@@ -89,20 +87,6 @@ def parse_frontmatter(lines: list[str]) -> tuple[dict[str, str], int]:
     return meta, end + 1
 
 
-def parse_progress(value: str) -> tuple[int, int] | str:
-    """Returns (done, total), or an error message if the value is invalid."""
-    progress_match = PROGRESS_RE.match(value)
-    if not progress_match:
-        return f"unparseable progress: {value!r}"
-
-    done, total = int(progress_match.group(1)), int(progress_match.group(2))
-    if total == 0:
-        return "progress total is 0"
-    if done > total:
-        return f"progress {done}/{total} exceeds total"
-    return done, total
-
-
 def parse_file(path: Path) -> Item:
     """Parses a Markdown file into an Item."""
     try:
@@ -114,7 +98,6 @@ def parse_file(path: Path) -> Item:
             done=None,
             total=None,
             unit="tasks",
-            mode="checklist",
             status="error",
             message=str(e),
         )
@@ -124,18 +107,8 @@ def parse_file(path: Path) -> Item:
     body = lines[body_start:]
     title = meta.get("title") or find_heading(body) or path.stem
 
-    if "progress" in meta:
-        unit = meta.get("unit") or "units"
-        progress = parse_progress(meta["progress"])
-        if isinstance(progress, str):
-            return Item(path, title, None, None, unit, "counter", "error", progress)
-        done, total = progress
-        return Item(path, title, done, total, unit, "counter", "ok")
-
     unit = meta.get("unit") or "tasks"
     done, total = count_checkboxes("\n".join(body))
     if total == 0:
-        return Item(
-            path, title, None, None, unit, "checklist", "empty", "no checkboxes found"
-        )
-    return Item(path, title, done, total, unit, "checklist", "ok")
+        return Item(path, title, None, None, unit, "empty", "no checkboxes found")
+    return Item(path, title, done, total, unit, "ok")

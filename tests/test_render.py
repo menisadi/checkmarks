@@ -14,11 +14,9 @@ from checkmarks.render import (
     truncate,
 )
 
-OK = Item(Path("books/dune.md"), "Dune", 143, 320, "pages", "counter", "ok")
-EMPTY = Item(
-    Path("notes.md"), "Notes", None, None, "tasks", "checklist", "empty", "no boxes"
-)
-ERROR = Item(Path("bad.md"), "Bad", None, None, "units", "counter", "error", "oops")
+OK = Item(Path("books/dune.md"), "Dune", 143, 320, "pages", "ok")
+EMPTY = Item(Path("notes.md"), "Notes", None, None, "tasks", "empty", "no boxes")
+ERROR = Item(Path("bad.md"), "Bad", None, None, "tasks", "error", "oops")
 
 
 def bar_of(line: str) -> str:
@@ -30,15 +28,15 @@ def bar_of(line: str) -> str:
 
 def test_tsv_rows() -> None:
     assert render_tsv([OK, EMPTY, ERROR]).splitlines() == [
-        "Dune\t143\t320\t44.7\tpages\tcounter\tok\tbooks/dune.md",
-        "Notes\t\t\t\ttasks\tchecklist\tempty\tnotes.md",
-        "Bad\t\t\t\tunits\tcounter\terror\tbad.md",
+        "Dune\t143\t320\t44.7\tpages\tok\tbooks/dune.md",
+        "Notes\t\t\t\ttasks\tempty\tnotes.md",
+        "Bad\t\t\t\ttasks\terror\tbad.md",
     ]
 
 
 def test_tsv_cleans_title_and_unit() -> None:
-    item = Item(Path("a.md"), "A\tB\nC\r", 1, 2, "x\ty", "checklist", "ok")
-    assert render_tsv([item]) == "A B C \t1\t2\t50.0\tx y\tchecklist\tok\ta.md\n"
+    item = Item(Path("a.md"), "A\tB\nC\r", 1, 2, "x\ty", "ok")
+    assert render_tsv([item]) == "A B C \t1\t2\t50.0\tx y\tok\ta.md\n"
 
 
 def test_tsv_empty_list() -> None:
@@ -56,7 +54,6 @@ def test_json_rows() -> None:
         "total": 320,
         "pct": 44.7,
         "unit": "pages",
-        "mode": "counter",
         "status": "ok",
         "path": "books/dune.md",
     }
@@ -66,7 +63,7 @@ def test_json_rows() -> None:
 
 
 def test_json_keeps_unicode() -> None:
-    item = Item(Path("g.md"), "Gödel", 1, 2, "pages", "counter", "ok")
+    item = Item(Path("g.md"), "Gödel", 1, 2, "pages", "ok")
     assert "Gödel" in render_json([item])
 
 
@@ -106,11 +103,11 @@ def test_pretty_pct(done: int, total: int, expected: int) -> None:
 
 def test_pretty_spec_example() -> None:
     items = [
-        Item(Path("a"), "Thinking, Fast and Slow", 143, 320, "pages", "counter", "ok"),
-        Item(Path("b"), "Gödel, Escher, Bach", 180, 777, "pages", "counter", "ok"),
-        Item(Path("c"), "Rust tutorial", 12, 28, "tasks", "checklist", "ok"),
-        Item(Path("d"), "NN hands-on", 2, 8, "tasks", "checklist", "ok"),
-        Item(Path("e"), "Broken file", None, None, "units", "counter", "error"),
+        Item(Path("a"), "Thinking, Fast and Slow", 143, 320, "pages", "ok"),
+        Item(Path("b"), "Gödel, Escher, Bach", 180, 777, "pages", "ok"),
+        Item(Path("c"), "Rust tutorial", 12, 28, "tasks", "ok"),
+        Item(Path("d"), "NN hands-on", 2, 8, "tasks", "ok"),
+        Item(Path("e"), "Broken file", None, None, "tasks", "error"),
     ]
     assert render_pretty(items, 50, False).splitlines() == [
         "Thinking, Fast…  [████------]  143/320 pages   45%",
@@ -126,7 +123,7 @@ def test_pretty_lines_fit_width() -> None:
         OK,
         EMPTY,
         ERROR,
-        Item(Path("w"), "日本語の本" * 5, 1, 2, "p", "counter", "ok"),
+        Item(Path("w"), "日本語の本" * 5, 1, 2, "p", "ok"),
     ]
     for width in (50, 60, 80):
         lines = render_pretty(items, width, False).splitlines()
@@ -134,7 +131,7 @@ def test_pretty_lines_fit_width() -> None:
 
 
 def test_pretty_columns_align() -> None:
-    items = [OK, EMPTY, ERROR, Item(Path("w"), "日本", 1, 2, "p", "counter", "ok")]
+    items = [OK, EMPTY, ERROR, Item(Path("w"), "日本", 1, 2, "p", "ok")]
     lines = render_pretty(items, 80, False).splitlines()
     starts = {display_width(line[: line.index("[")]) for line in lines}
     widths = {display_width(line) for line in lines}
@@ -153,7 +150,7 @@ def test_pretty_bar_min_width() -> None:
 
 
 def test_pretty_bar_is_floored() -> None:
-    item = Item(Path("a"), "A", 319, 320, "pages", "counter", "ok")
+    item = Item(Path("a"), "A", 319, 320, "pages", "ok")
     line = render_pretty([item], 200, False).splitlines()[0]
     assert bar_of(line) == "█" * 39 + "-"
     assert line.endswith(" 99%")
@@ -173,14 +170,14 @@ def test_pretty_only_non_ok_rows() -> None:
 
 
 def test_pretty_color_only_when_complete() -> None:
-    complete = Item(Path("a"), "A", 5, 5, "tasks", "checklist", "ok")
+    complete = Item(Path("a"), "A", 5, 5, "tasks", "ok")
     out = render_pretty([OK, complete, ERROR], 60, True).splitlines()
     assert out[1].startswith(GREEN)
     assert "\033[" not in out[0] + out[2]
 
 
 def test_pretty_no_color() -> None:
-    complete = Item(Path("a"), "A", 5, 5, "tasks", "checklist", "ok")
+    complete = Item(Path("a"), "A", 5, 5, "tasks", "ok")
     assert "\033[" not in render_pretty([complete], 60, False)
 
 

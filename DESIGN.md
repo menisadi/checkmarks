@@ -34,9 +34,12 @@ own. Pretty output for humans, plain output for pipes.
 Files are read as UTF-8. A leading BOM is stripped, and CRLF line endings are
 treated the same as LF.
 
-### 1.1 Checklist mode (default)
+### 1.1 Checklists
 
-A file is tracked by counting its checkboxes.
+A file is tracked by counting its checkboxes. There is no other way to
+report progress: big items like books are broken down into chapters or page
+ranges, each a checkbox. (v0.2 also had a `progress: N/M` frontmatter
+"counter mode"; it was removed as out of spirit with checkbox tracking.)
 
 - Matches list items, both bulleted and ordered (`1.` and `1)`):
   `^\s*(?:[-*+]|\d+[.)])\s+\[( |x|X)\](?:\s|$)`
@@ -48,15 +51,11 @@ A file is tracked by counting its checkboxes.
   unclosed fence runs to the end of the file.
 - `unit` defaults to `tasks`
 
-### 1.2 Counter mode (frontmatter override)
-
-If the file has frontmatter with a `progress:` key, that value drives the row
-and the checkboxes are ignored for the bar.
+### 1.2 Frontmatter
 
 ```markdown
 ---
-progress: 143/320
-unit: pages
+unit: chapters
 ---
 # Dune
 - [x] Book One
@@ -75,9 +74,7 @@ Frontmatter rules:
   - A value wrapped in matching single or double quotes has them removed.
   - Lines without a `:` are ignored.
 - Keys:
-  - `progress`: `N/M`, non-negative integers, whitespace around `/` allowed
-  - `unit`: free text, display only (default `tasks` in checklist mode,
-    `units` in counter mode if omitted)
+  - `unit`: free text, display only (default `tasks`)
   - `title`: overrides the heading-derived title
 - Unknown keys are ignored silently, so they stay free for future features.
 
@@ -91,17 +88,13 @@ The title is chosen in this order:
 
 ### 1.4 Status
 
-Every row has a `mode` (`checklist` or `counter`) and a `status`:
+Every row has a `status`:
 
 - `ok`: valid counts.
-- `empty`: a checklist-mode file with zero checkboxes. No warning by default;
+- `empty`: a file with zero checkboxes. No warning by default;
   a warning on stderr under `--verbose`.
 - `error`: the row is still emitted, and a warning is printed on stderr.
-  Causes:
-  - The file can't be read or isn't valid UTF-8 (mode `checklist`)
-  - `progress` is unparseable (mode `counter`)
-  - `M == 0` (mode `counter`)
-  - `N > M` (mode `counter`)
+  Cause: the file can't be read or isn't valid UTF-8.
 
 For `empty` and `error` rows, `done`, `total` and `pct` are unset (`null` in
 JSON, empty fields in TSV).
@@ -180,11 +173,11 @@ Broken file               [    ?     ]    ?             ?
 One row per file, no header, tab-separated:
 
 ```
-title    done    total    pct    unit    mode    status    path
+title    done    total    pct    unit    status    path
 ```
 
 - `pct` has one decimal place.
-- `mode` is `checklist` or `counter`; `status` is `ok`, `empty` or `error`.
+- `status` is `ok`, `empty` or `error`.
 - `empty` and `error` rows have empty `done`/`total`/`pct` fields.
 - Tabs and newlines in titles are replaced with spaces.
 - `path` is printed as given (not resolved).
@@ -196,11 +189,10 @@ A JSON array of objects:
 ```json
 {
   "title": "Dune",
-  "done": 143,
-  "total": 320,
-  "pct": 44.7,
-  "unit": "pages",
-  "mode": "counter",
+  "done": 9,
+  "total": 22,
+  "pct": 40.9,
+  "unit": "chapters",
   "status": "ok",
   "path": "progress/dune.md"
 }
@@ -243,7 +235,6 @@ class Item:
     done: int | None
     total: int | None
     unit: str
-    mode: Literal["checklist", "counter"]
     status: Literal["ok", "empty", "error"]
     message: str | None = None
 ```
@@ -273,7 +264,7 @@ Target Python 3.11+, standard library only.
    existing logic unchanged and add tests for current behaviour.
 2. Add `parse.py` checkbox rules: bullet and ordered variants, `[X]`,
    `(\s|$)` after the bracket, ignoring fenced code.
-3. Add frontmatter parsing, title resolution and counter mode, with the
+3. Add frontmatter parsing and title resolution, with the
    status rules from §1.4.
 4. Add `collect.py`: multiple paths, directories, `-r`, `-`,
    `$CHECKMARKS_DIR`, dot-directory skipping, dedupe, extension matching.
@@ -289,8 +280,6 @@ terminal width.
 
 ## 7. Future ideas (not v0.2)
 
-- `checkmarks bump FILE N`: a separate tiny command to increment `progress`
-- A secondary column showing chapter checkboxes in counter mode ("ch 1/3")
 - A `last updated` column from file mtime, to highlight stalled items
 - `archived: true` frontmatter key (or `--hide-done`) to drop finished items
 - An `icon:` frontmatter key for per-row emoji

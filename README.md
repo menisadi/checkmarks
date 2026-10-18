@@ -4,10 +4,10 @@ A small command-line dashboard for your progress. Point it at a folder of Markdo
 
 ```
 $ checkmarks ~/progress
-Thinking, Fast and Slow  [████------]  143/320 pages   45%
-Gödel, Escher, Bach      [██--------]  180/777 pages   23%
-Rust tutorial            [████------]   12/28  tasks   43%
-NN hands-on              [██--------]    2/8   tasks   25%
+Thinking, Fast and Slow  [████------]  17/38 chapters   45%
+Gödel, Escher, Bach      [██--------]   5/22 chapters   23%
+Rust tutorial            [████------]  12/28 tasks      43%
+NN hands-on              [██--------]   2/8  tasks      25%
 ```
 
 Your Markdown files are the source of truth: checkmarks only reads and reports. It never changes your files and keeps no state of its own.
@@ -61,27 +61,30 @@ By default, checkmarks counts checkboxes:
 - List items can start with `-`, `*`, `+`, `1.` or `1)`.
 - Checkboxes inside fenced code blocks are ignored.
 
-### Counters
+### Big things: break them down
 
-For things that aren't a list of tasks, like the pages of a book, add frontmatter with a `progress` key. It replaces the checkbox count:
+checkmarks only counts checkboxes. To track a book, split it into chapters or page ranges, each one a task small enough to finish in a sitting:
 
 ```markdown
 ---
-progress: 143/320
-unit: pages
+unit: chunks
 ---
 # Dune
+
+- [x] pp. 1–40
+- [x] pp. 41–80
+- [ ] pp. 81–120
+- [ ] pp. 121–160
 ```
 
-Supported keys:
+Supported frontmatter keys:
 
-| Key        | Meaning                                                            |
-|------------|--------------------------------------------------------------------|
-| `progress` | `done/total`, e.g. `143/320`                                       |
-| `unit`     | Label after the count (default `tasks`, or `units` with `progress`) |
-| `title`    | Row title                                                          |
+| Key     | Meaning                                  |
+|---------|------------------------------------------|
+| `unit`  | Label after the count (default `tasks`)  |
+| `title` | Row title                                |
 
-`unit` and `title` also work in checklist files. Other keys are ignored.
+Other keys are ignored.
 
 ### Titles
 
@@ -94,7 +97,7 @@ On a terminal, checkmarks prints the aligned table shown above. Rows at 100% are
 When output is piped, it switches to tab-separated rows with no header:
 
 ```
-title  done  total  pct  unit  mode  status  path
+title  done  total  pct  unit  status  path
 ```
 
 Use `--json` for a JSON array:
@@ -104,18 +107,17 @@ $ checkmarks --json dune.md
 [
   {
     "title": "Dune",
-    "done": 143,
-    "total": 320,
-    "pct": 44.7,
-    "unit": "pages",
-    "mode": "counter",
+    "done": 9,
+    "total": 22,
+    "pct": 40.9,
+    "unit": "chapters",
     "status": "ok",
     "path": "dune.md"
   }
 ]
 ```
 
-`status` is `ok`, `empty` (no checkboxes) or `error` (e.g. an invalid `progress` value). Problems are reported on stderr, and the row is still shown.
+`status` is `ok`, `empty` (no checkboxes) or `error` (the file can't be read). Problems are reported on stderr, and the row is still shown.
 
 Empty files found in folders are hidden; pass `--all` to show them. Files you name directly are always shown.
 
@@ -131,6 +133,11 @@ Empty files found in folders are hidden; pass `--all` to show them. Files you na
 | `-v`, `--verbose`            | Also warn about files with no checkboxes    |
 
 Exit code is `0` if at least one file has progress to show, `1` if none does, and `2` for usage errors.
+
+## Upgrading from 0.2
+
+- The `progress: N/M` frontmatter key (counter mode) is gone. Replace it with a checklist of chapters or page ranges.
+- The `mode` column (TSV) and field (JSON) are removed.
 
 ## Upgrading from 0.1
 
