@@ -8,7 +8,8 @@ authors = [
 
 readme = "README.md"
 
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 
 keywords = ["cli", "markdown", "checklists"]
 
@@ -27,5 +28,5 @@ checkmarks = "checkmarks.cli:main"
 dev = ["pytest", "ruff", "ty"]
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
