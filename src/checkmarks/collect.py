@@ -30,17 +30,19 @@ def expand_dir(directory: Path, recursive: bool) -> list[Path]:
     return sorted(found)
 
 
-def iter_args(paths: list[str], stdin: TextIO, env: Mapping[str, str]) -> Iterator[str]:
-    """Yields path arguments, expanding `-` and applying the no-argument default."""
+def iter_args(
+    paths: list[str], stdin: TextIO, env: Mapping[str, str]
+) -> Iterator[tuple[str, bool]]:
+    """Yields (path, from_stdin) pairs, expanding `-` and the no-argument default."""
     if not paths:
-        yield env.get("CHECKMARKS_DIR") or "."
+        yield env.get("CHECKMARKS_DIR") or ".", False
         return
 
     for arg in paths:
         if arg == "-":
-            yield from (line.strip() for line in stdin if line.strip())
+            yield from ((line.strip(), True) for line in stdin if line.strip())
         else:
-            yield arg
+            yield arg, False
 
 
 def collect(
@@ -61,13 +63,14 @@ def collect(
         seen[key] = source
         sources.append(source)
 
-    for arg in iter_args(paths, stdin, env):
+    for arg, from_stdin in iter_args(paths, stdin, env):
         path = Path(arg)
         if path.is_dir():
             for file in expand_dir(path, recursive):
                 add(file, explicit=False)
         elif path.exists():
-            add(path, explicit=True)
+            # Piped paths are usually a bulk listing, so treat them like a folder
+            add(path, explicit=not from_stdin)
         else:
             warnings.append(f"{arg}: no such file or directory")
 

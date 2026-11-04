@@ -119,14 +119,14 @@ $ checkmarks --json dune.md
 
 `status` is `ok`, `empty` (no checkboxes) or `error` (the file can't be read). Problems are reported on stderr, and the row is still shown.
 
-Empty files found in folders are hidden; pass `--all` to show them. Files you name directly are always shown.
+Empty files found in folders or read from stdin are hidden; pass `--all` to show them. Files you name as arguments are always shown.
 
 ## Options
 
 | Option                       | Description                                 |
 |------------------------------|---------------------------------------------|
 | `-r`, `--recursive`          | Descend into subfolders                     |
-| `--all`                      | Show empty files found in folders           |
+| `--all`                      | Show empty files from folders or stdin      |
 | `--format {pretty,tsv,json}` | Choose the output format                    |
 | `--json`                     | Same as `--format json`                     |
 | `--no-color`                 | Disable colour                              |

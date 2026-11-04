@@ -68,9 +68,16 @@ def test_stdin_paths(tmp_path: Path) -> None:
     stdin = io.StringIO(f"{tmp_path / 'a.md'}\n\n  \n{tmp_path / 'dir'}\n")
     sources, _ = collect(["-"], False, stdin, {})
     assert [(n, s.explicit) for n, s in zip(names(sources, tmp_path), sources)] == [
-        ("a.md", True),
+        ("a.md", False),
         ("dir/b.md", False),
     ]
+
+
+def test_stdin_path_explicit_when_also_an_arg(tmp_path: Path) -> None:
+    make_tree(tmp_path, ["a.md"])
+    stdin = io.StringIO(f"{tmp_path / 'a.md'}\n")
+    sources, _ = collect(["-", str(tmp_path / "a.md")], False, stdin, {})
+    assert sources == [Source(tmp_path / "a.md", True)]
 
 
 def test_stdin_not_read_without_dash(

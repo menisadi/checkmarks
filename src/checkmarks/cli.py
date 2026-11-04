@@ -23,7 +23,9 @@ def build_parser() -> argparse.ArgumentParser:
         "-r", "--recursive", action="store_true", help="descend into subdirectories"
     )
     parser.add_argument(
-        "--all", action="store_true", help="show empty files found in directories"
+        "--all",
+        action="store_true",
+        help="show empty files found in directories or read from stdin",
     )
     fmt = parser.add_mutually_exclusive_group()
     fmt.add_argument(

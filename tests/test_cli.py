@@ -127,6 +127,19 @@ def test_stdin_paths(
     assert capsys.readouterr().out.startswith("Beta\t")
 
 
+def test_stdin_hides_empty_unless_all(
+    tree: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO("a.md\nnotes.md\n"))
+    main(["-"])
+    assert "Notes" not in capsys.readouterr().out
+    monkeypatch.setattr(sys, "stdin", io.StringIO("a.md\nnotes.md\n"))
+    main(["-", "--all"])
+    assert "Notes\t\t\t\ttasks\tempty\tnotes.md" in capsys.readouterr().out
+
+
 def test_env_dir(
     tree: Path,
     tmp_path_factory: pytest.TempPathFactory,
