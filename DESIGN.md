@@ -26,6 +26,9 @@ own. Pretty output for humans, plain output for pipes.
 - Editing or updating files (use `$EDITOR`)
 - History, streaks, stats over time (git already has the history)
 - Reminders, notifications, a database, a web UI
+- Smarter directory scanning (ignore files, excludes, depth limits, globs).
+  The scanner stays deliberately simple; for anything fancier, pipe paths
+  in with `-` (e.g. `fd -e md . ~/progress | sort | checkmarks -`)
 
 ---
 
@@ -127,10 +130,10 @@ checkmarks [PATH ...] [-r] [--all] [--format {pretty,tsv,json}] [--json] [--no-c
 ### Visibility
 
 - Files found by expanding a directory (including `$CHECKMARKS_DIR` and the
-  current directory) are hidden when their status is `empty`. This applies to
-  all formats.
+  current directory) or read from stdin via `-` are hidden when their status
+  is `empty`. This applies to all formats.
 - `--all` shows them.
-- Files named explicitly, as arguments or via `-`, are always shown.
+- Files named explicitly as arguments are always shown.
 
 ### Output format selection
 
