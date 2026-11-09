@@ -1,27 +1,25 @@
-# checkmarks v0.2 — progress dashboard
+# checkmarks — design
 
 ## Goal
 
-Turn `checkmarks` from "progress bar for one Markdown checklist" into a small
-dashboard: point it at a folder of Markdown files (books, courses, tutorials)
-and get one progress row per file.
+`checkmarks` is a small progress dashboard: point it at a folder of Markdown
+files (books, courses, tutorials) and get one progress row per file.
+
+This document describes v0.4.0.
 
 Design principle: plain-text files are the source of truth. checkmarks only
 reads and reports. It never writes to tracked files and keeps no state of its
 own. Pretty output for humans, plain output for pipes.
 
-## Current state (v0.1.1)
+## Version history
 
-- A package `checkmarks/` (flat layout) with entry point
-  `checkmarks = checkmarks.cli:main`
-- Counts `- [ ]` / `- [x]` occurrences
-- Title from the first `# Heading`
-- Prints one progress bar
-- Basic tests in `tests/test_cli.py`
-- Published on PyPI as `checkmarks`
-- A `beta/` folder with earlier experiments (`main.py`, `main2.py`)
+- 0.1.x: single-file progress bar.
+- 0.2.0: dashboard: multiple paths, directories, stdin, tsv/json/pretty
+  output. Breaking output change from 0.1.x; minimum Python 3.11.
+- 0.3.0: removed the `progress: N/M` frontmatter counter mode (breaking).
+- 0.4.0: empty files read from stdin via `-` are hidden unless `--all`.
 
-## Non-goals for v0.2
+## Non-goals
 
 - Editing or updating files (use `$EDITOR`)
 - History, streaks, stats over time (git already has the history)
@@ -223,6 +221,7 @@ checkmarks/
 │   └── cli.py              # argparse, wiring, exit codes
 └── tests/
     ├── fixtures/           # sample .md files
+    ├── test_cli.py
     ├── test_parse.py
     ├── test_collect.py
     └── test_render.py
@@ -247,41 +246,11 @@ beyond reading the given file, and none at all in `render.py`.
 
 Target Python 3.11+, standard library only.
 
----
-
-## 5. Compatibility
-
-- `checkmarks file.md` keeps working, but output becomes a one-row table
-  instead of the old block with the bold title line and "N/M tasks completed".
-  This is a breaking output change, so release it as 0.2.0 (from 0.1.1) and
-  note it in the README.
-- Plain checklist files from v0.1 need no changes.
-- Minimum Python becomes 3.11.
+Pretty output tests should force a fixed terminal width.
 
 ---
 
-## 6. Implementation plan
-
-1. Move to the `src/` layout and add `requires-python = ">=3.11"`. Remove
-   `beta/` after confirming nothing in it is missing from `cli.py`. Port the
-   existing logic unchanged and add tests for current behaviour.
-2. Add `parse.py` checkbox rules: bullet and ordered variants, `[X]`,
-   `(\s|$)` after the bracket, ignoring fenced code.
-3. Add frontmatter parsing and title resolution, with the
-   status rules from §1.4.
-4. Add `collect.py`: multiple paths, directories, `-r`, `-`,
-   `$CHECKMARKS_DIR`, dot-directory skipping, dedupe, extension matching.
-5. Add renderers in this order: tsv → json → pretty, with TTY auto-detection.
-6. Add `--all` visibility rules, exit codes and stderr warnings.
-7. Update the README with format spec and examples, bump to 0.2.0, then
-   publish.
-
-Each step should land with tests. Pretty output tests should force a fixed
-terminal width.
-
----
-
-## 7. Future ideas (not v0.2)
+## 5. Future ideas
 
 - A `last updated` column from file mtime, to highlight stalled items
 - `archived: true` frontmatter key (or `--hide-done`) to drop finished items
