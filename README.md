@@ -127,6 +127,8 @@ Empty files found in folders or read from stdin are hidden; pass `--all` to show
 |------------------------------|---------------------------------------------|
 | `-r`, `--recursive`          | Descend into subfolders                     |
 | `--all`                      | Show empty files from folders or stdin      |
+| `--hide-done`                | Hide files that are 100% done               |
+| `--sort {title,pct}`         | Sort by title (A-Z) or pct (highest first)  |
 | `--format {pretty,tsv,json}` | Choose the output format                    |
 | `--json`                     | Same as `--format json`                     |
 | `--no-color`                 | Disable colour                              |

@@ -151,3 +151,27 @@ def test_env_dir(
     monkeypatch.setenv("CHECKMARKS_DIR", str(other))
     main([])
     assert capsys.readouterr().out.startswith("Gamma\t")
+
+
+def test_hide_done(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    assert main(["--hide-done", "a.md", "b.md", "notes.md"]) == 0
+    titles = [line.split("\t")[0] for line in capsys.readouterr().out.splitlines()]
+    assert titles == ["Alpha", "Notes"]
+
+
+def test_hide_done_exit_1_when_all_done(tree: Path) -> None:
+    assert main(["--hide-done", "b.md"]) == 1
+
+
+def test_sort_title(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    (tree / "c.md").write_text("# aardvark\n- [ ] a\n", encoding="utf-8")
+    main(["--sort", "title", "b.md", "c.md", "a.md"])
+    titles = [line.split("\t")[0] for line in capsys.readouterr().out.splitlines()]
+    assert titles == ["aardvark", "Alpha", "Beta"]
+
+
+def test_sort_pct(tree: Path, capsys: pytest.CaptureFixture) -> None:
+    (tree / "c.md").write_text("# Gamma\n- [x] a\n- [ ] b\n", encoding="utf-8")
+    main(["--sort", "pct", "bad.md", "notes.md", "a.md", "b.md", "c.md"])
+    titles = [line.split("\t")[0] for line in capsys.readouterr().out.splitlines()]
+    assert titles == ["Beta", "Alpha", "Gamma", "bad", "Notes"]

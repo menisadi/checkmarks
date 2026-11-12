@@ -105,7 +105,7 @@ JSON, empty fields in TSV).
 ## 2. CLI
 
 ```
-checkmarks [PATH ...] [-r] [--all] [--format {pretty,tsv,json}] [--json] [--no-color] [-v]
+checkmarks [PATH ...] [-r] [--all] [--hide-done] [--sort {title,pct}] [--format {pretty,tsv,json}] [--json] [--no-color] [-v]
 ```
 
 ### Input resolution
@@ -132,6 +132,19 @@ checkmarks [PATH ...] [-r] [--all] [--format {pretty,tsv,json}] [--json] [--no-c
   is `empty`. This applies to all formats.
 - `--all` shows them.
 - Files named explicitly as arguments are always shown.
+- `--hide-done` hides `ok` rows where `done == total`, including files named
+  explicitly. `empty` and `error` rows are unaffected.
+
+### Sorting
+
+- By default rows keep input order.
+- `--sort title` sorts by title, case-insensitive, A-Z.
+- `--sort pct` sorts by percentage, highest first; `empty` and `error` rows
+  go last.
+- Sorting is stable, so ties keep input order. Sorting applies to all
+  formats. Other keys are left out on purpose: `done`/`total` don't compare
+  across units, and thresholds like a minimum pct are a pipe job
+  (`checkmarks | awk -F'\t' '$4 >= 50'`).
 
 ### Output format selection
 
@@ -141,7 +154,7 @@ checkmarks [PATH ...] [-r] [--all] [--format {pretty,tsv,json}] [--json] [--no-c
 
 ### Exit codes
 
-- `0`: at least one row has status `ok`. Per-file warnings don't change this.
+- `0`: at least one shown row has status `ok` (after `--hide-done`). Per-file warnings don't change this.
 - `1`: no row has status `ok`. This covers no files found, only bad paths,
   all rows `error`, and all rows `empty`.
 - `2`: usage error (argparse default).
@@ -253,7 +266,7 @@ Pretty output tests should force a fixed terminal width.
 ## 5. Future ideas
 
 - A `last updated` column from file mtime, to highlight stalled items
-- `archived: true` frontmatter key (or `--hide-done`) to drop finished items
+- `archived: true` frontmatter key to drop finished items permanently
 - An `icon:` frontmatter key for per-row emoji
 - A pace and history report built from `git log` of the progress folder, as a
   separate script

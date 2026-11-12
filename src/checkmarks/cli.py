@@ -5,7 +5,7 @@ import sys
 
 from checkmarks.collect import collect
 from checkmarks.parse import Item, parse_file
-from checkmarks.render import render_json, render_pretty, render_tsv
+from checkmarks.render import pct, render_json, render_pretty, render_tsv
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,6 +26,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--all",
         action="store_true",
         help="show empty files found in directories or read from stdin",
+    )
+    parser.add_argument(
+        "--hide-done", action="store_true", help="hide files that are 100%% done"
+    )
+    parser.add_argument(
+        "--sort",
+        choices=["title", "pct"],
+        help="sort rows by title (A-Z) or pct (highest first) (default: input order)",
     )
     fmt = parser.add_mutually_exclusive_group()
     fmt.add_argument(
@@ -66,7 +74,15 @@ def main(argv: list[str] | None = None) -> int:
             warn(f"{item.path}: {item.message}")
         if item.status == "empty" and not source.explicit and not args.all:
             continue
+        if args.hide_done and item.status == "ok" and item.done == item.total:
+            continue
         items.append(item)
+
+    if args.sort == "title":
+        items.sort(key=lambda item: item.title.casefold())
+    elif args.sort == "pct":
+        # Highest first; rows without a pct (empty, error) go last.
+        items.sort(key=lambda item: (pct(item) is None, -(pct(item) or 0)))
 
     is_tty = sys.stdout.isatty()
     fmt = args.format or ("pretty" if is_tty else "tsv")
