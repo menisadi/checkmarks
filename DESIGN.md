@@ -5,7 +5,7 @@
 `checkmarks` is a small progress dashboard: point it at a folder of Markdown
 files (books, courses, tutorials) and get one progress row per file.
 
-This document describes v0.4.0.
+This document describes v0.5.0.
 
 Design principle: plain-text files are the source of truth. checkmarks only
 reads and reports. It never writes to tracked files and keeps no state of its
@@ -18,6 +18,7 @@ own. Pretty output for humans, plain output for pipes.
   output. Breaking output change from 0.1.x; minimum Python 3.11.
 - 0.3.0: removed the `progress: N/M` frontmatter counter mode (breaking).
 - 0.4.0: empty files read from stdin via `-` are hidden unless `--all`.
+- 0.5.0: `--sort {title,pct}` and `--hide-done`.
 
 ## Non-goals
 
